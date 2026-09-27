@@ -12,6 +12,7 @@ une colonne par carburant.
 - **Tri** configurable et **clic sur les en-têtes** pour trier à la volée.
 - **Noms et villes surchargeables**, **logos** par enseigne ou par station.
 - Prix le plus bas en vert, le plus haut en rouge, **ex æquo compris**.
+- **Ruptures signalées** : une icône et la durée à la place d'un prix périmé.
 - Éditeur graphique en sept sections repliables, alimenté par ce que l'intégration
   remonte réellement.
 - Sélecteur de carte **« par entité »** de HA 2026.6+ : cliquer sur un sensor de
@@ -20,7 +21,7 @@ une colonne par carburant.
   le service de l'intégration, sans quitter le tableau de bord.
 - **Français et anglais**, carte et éditeur, suivant la langue de Home Assistant.
 
-Version de la carte : **1.0.6** · Home Assistant **2024.4+** (le sélecteur par entité
+Version de la carte : **1.0.7** · Home Assistant **2024.4+** (le sélecteur par entité
 demande 2026.6+, il est simplement ignoré avant).
 
 ## Installation
@@ -102,6 +103,7 @@ unit: €/L                     # suffixe des en-têtes de carburant ; "" pour a
 highlight: true               # coloration du prix mini / maxi
 color_min: "#4caa40"
 color_max: "#e05252"
+shortage_stale_days: 30       # rupture en croix rouge au-delà de N jours ; 0 = jamais
 
 # ---- Recherche à proximité (absente = désactivée ; `true` = réglages par défaut)
 search:                            # carburants : à cocher sur la carte, choix enregistré
@@ -150,6 +152,7 @@ logos:
 | `highlight` | bool | `true` | Coloration mini / maxi. |
 | `color_min` | string | `#4caa40` | Couleur du prix le plus bas. |
 | `color_max` | string | `#e05252` | Couleur du prix le plus haut. |
+| `shortage_stale_days` | number | `30` | Jours au-delà desquels une rupture passe en croix rouge (voir *Ruptures*). `0` : jamais. Négatif : carte d'erreur. |
 | `search` | object / bool | absent | Barre de recherche à proximité (voir *Recherche à proximité*). `true` : réglages par défaut. |
 | `search.default_radius` | number | `5` | Rayon initial en km, de 1 à 30 ; réglable ensuite avec − / + sur la carte. |
 | `search.entity` | string | auto | Centre de la recherche. Absent : la personne de l'utilisateur connecté, sinon `zone.home`. |
@@ -215,6 +218,8 @@ Valeurs par défaut : `align` vaut `left` pour `name`, `brand`, `address`, `city
 
 Les valeurs manquantes (carburant absent, distance inconnue) sont **toujours** renvoyées
 en fin de tableau, quel que soit le sens du tri. À égalité, le nom de la station départage.
+Un carburant en rupture n'a pas de prix : il se range après les prix et avant les cases
+vides, de la rupture la plus récente à la plus ancienne.
 
 Avec `sortable: true`, un clic sur un en-tête trie sur cette colonne, un second clic
 inverse le sens (▲ / ▼ apparaît sur la colonne active). Ce tri est **temporaire** : il
@@ -260,6 +265,38 @@ serait à la fois la moins chère et la plus chère.
 
 Les **ex æquo sont tous colorés** : trois stations au même prix plancher sont trois fois
 la bonne affaire. `highlight: false` désactive complètement la coloration.
+
+## Ruptures
+
+En rupture, l'API ne publie plus de prix pour le carburant. L'intégration garde pourtant le
+dernier prix connu comme état du sensor, et renseigne l'attribut `shortage_since`. La carte
+lit cet attribut : la case affiche une icône à la place du prix, suivie de la durée de la
+rupture.
+
+| Affichage | Signification |
+|---|---|
+| Icône orange (`mdi:gas-station-off`) et durée : `20 min`, `3 h`, `2 j`, `5 sem.`, `4 mois`, `1 an` | Rupture en cours. |
+| Croix rouge (`mdi:close-thick`) et durée | Rupture depuis plus de `shortage_stale_days` jours (30 par défaut). |
+
+- L'infobulle de la case donne la date exacte du début et le dernier prix connu.
+- Un prix en rupture ne compte ni pour le vert ni pour le rouge : le moins cher passe à la
+  station suivante.
+- Une légende s'ajoute sous le tableau quand il contient une rupture, avec les seuls cas
+  présents.
+- La durée s'actualise chaque minute tant qu'une rupture est affichée.
+
+Le seuil existe parce que beaucoup de ruptures déclarées temporaires ne le sont pas : dans
+le flux national du 27/09/2026, 151 des 1 242 ruptures temporaires de SP95-E10 duraient
+depuis plus d'un mois. `shortage_stale_days: 0` garde l'icône orange quelle que soit la
+durée.
+
+Deux limites viennent des données :
+
+- **Les ruptures déclarées définitives n'apparaissent pas.** L'intégration retire alors le
+  carburant de ses données : le sensor reste figé sur son dernier prix, et rien ne permet à
+  la carte de le reconnaître.
+- **La recherche à proximité ne signale pas les ruptures** : le service de l'intégration ne
+  les renvoie pas.
 
 ## Lien carte
 
@@ -424,7 +461,7 @@ Sept sections repliables, dans l'ordre des décisions :
 | **Stations** | Une case par station, ▲ / ▼ pour ordonner. Filtre au-delà de 8 stations ; les flèches sont neutralisées tant qu'un filtre est actif, l'ordre n'ayant pas de sens sur une liste partielle. |
 | **Tri** | `sort`, `sort_desc`, `sortable`. « ≡ Ordre personnalisé des stations » est en tête de liste, séparé des tris portant sur une donnée. |
 | **Colonnes** | Interrupteur par colonne, ▲ / ▼ pour ordonner. |
-| **Affichage** | `title`, `show_title`, `unit`, `decimals` (0 à 3 dans l'éditeur, jusqu'à 10 en YAML), `highlight`, `more_info`, `map_link`. |
+| **Affichage** | `title`, `show_title`, `unit`, `decimals` (0 à 3 dans l'éditeur, jusqu'à 10 en YAML), `highlight`, `shortage_stale_days`, `more_info`, `map_link`. |
 | **Noms et villes** | Un champ nom et un champ ville par station affichée, plus les surcharges devenues orphelines. |
 | **Logos des enseignes** | Préfixe, puis un champ et un aperçu par enseigne détectée. |
 | **Recherche à proximité** | Interrupteur de la barre, rayon par défaut, position de référence (`search.entity`). Les carburants se cochent sur la carte. |
@@ -498,6 +535,8 @@ de langue.
 | `--prix-carburant-hover` | `rgba(127,127,127,0.22)` | Fond de la ligne survolée. |
 | `--prix-carburant-color-min` | `color_min` | Couleur du prix le plus bas. |
 | `--prix-carburant-color-max` | `color_max` | Couleur du prix le plus haut. |
+| `--prix-carburant-color-shortage` | `--warning-color` | Icône d'une rupture en cours. |
+| `--prix-carburant-color-shortage-stale` | `--error-color` | Croix d'une rupture prolongée. |
 
 Sous 600 px de large, la carte réduit d'elle-même le texte, les marges, les logos et les
 boutons de recherche.
@@ -510,7 +549,8 @@ La carte suit le thème de Home Assistant :
 *Les deux captures montrent **toutes** les colonnes reconnues par la carte, sur des relevés
 réels du flux public
 [prix des carburants en France](https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/)
-— six enseignes, six villes, distances calculées depuis Paris. Elles sont produites par
+— six enseignes, six villes, distances calculées depuis Paris. Les deux ruptures (E10 à
+Auteuil, E85 à Toulouse) sont simulées. Les captures sont produites par
 [`tools/screenshot.html`](tools/screenshot.html), qui charge la vraie carte depuis `dist/`
 et lui passe un `hass` réduit ; `pwsh tools/screenshot.ps1` les régénère.*
 

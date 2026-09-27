@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.7] - 2026-09-27
+
+### Added
+- **Les carburants en rupture sont signalés.** En rupture, l'API ne publie plus de prix : l'intégration gardait le dernier connu comme état du sensor, et la carte l'affichait comme s'il était valable, jusqu'à le colorer en vert comme le moins cher. La carte lit désormais l'attribut `shortage_since` : la case montre une icône orange à la place du prix, suivie de la durée de la rupture (`20 min`, `3 h`, `2 j`, `5 sem.`…), actualisée chaque minute. L'infobulle donne la date de début et le dernier prix connu. Au-delà de `shortage_stale_days` jours (30 par défaut, `0` pour jamais), l'icône devient une croix rouge : beaucoup de ruptures déclarées temporaires durent des mois. Un prix en rupture ne compte plus pour le vert ni le rouge, et se range en fin de tri, après les prix et avant les cases vides, de la plus récente à la plus ancienne. Une légende s'ajoute sous le tableau quand une rupture y figure. Les ruptures déclarées définitives restent invisibles, l'intégration ne les transmettant pas. Réglable dans l'éditeur, section Affichage ; couleurs par `--prix-carburant-color-shortage` et `--prix-carburant-color-shortage-stale`. Rapporté sur le forum HACF.
+
+### Fixed
+- **La recherche à proximité échouait avec « The action requires responses and must be called with return_response=True »**, une notification par carburant. La carte passait par `hass.callService`, qu'une carte conteneur (pile, popup, mise en page…) peut remplacer par une version qui ne transmet que ses quatre premiers arguments : la demande de réponse se perdait, et avec elle celle de ne pas notifier. La carte envoie désormais elle-même la commande WebSocket `call_service` avec `return_response`, sans dépendre de l'objet `hass` qu'on lui passe. Rapporté sur le forum HACF.
+
 ## [1.0.6] - 2026-09-26
 
 ### Added

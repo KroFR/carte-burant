@@ -11,7 +11,7 @@
 param(
   [string] $Chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe",
   [int]    $Width  = 1360,
-  [int]    $Height = 336
+  [int]    $Height = 368
 )
 
 $ErrorActionPreference = "Stop"

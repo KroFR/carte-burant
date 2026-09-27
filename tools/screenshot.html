@@ -14,6 +14,8 @@
   https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/
   releve le 31/07/2026 ; les noms de stations et les enseignes du referentiel de
   l'integration ; les distances sont calculees depuis le centre de Paris.
+  Les deux ruptures (E10 a Auteuil, E85 a Toulouse) sont simulees : elles
+  montrent l'icone orange, la croix rouge et la legende.
 -->
 <meta charset="utf-8">
 <title>Prix Carburant Card — rendu</title>
@@ -68,6 +70,25 @@
     }
   }
   customElements.define("ha-card", HaCard);
+
+  /* Doublure de `ha-icon`, limitee aux icones que la carte affiche dans le
+     tableau : celles des ruptures. Les chemins viennent de @mdi/svg. */
+  const MDI = {
+    "mdi:gas-station-off": "M1 4.27L2.28 3L21 21.72L19.73 23L17.71 21C16.56 20.85 15.65 19.94 15.5 18.78L14 17.27V21H4V7.27L1 4.27M18 10C18.55 10 19 9.55 19 9C19 8.45 18.55 8 18 8C17.45 8 17 8.45 17 9C17 9.55 17.45 10 18 10M12 10V5H6.82L5.06 3.23C5.34 3.08 5.66 3 6 3H12C13.1 3 14 3.89 14 5V12H15C16.1 12 17 12.89 17 14V15.18L11.82 10H12M6 10H6.73L6 9.27V10M19.77 7.23C20.22 7.68 20.5 8.31 20.5 9L20.5 18.67L19 17.18V11.29C18.69 11.42 18.36 11.5 18 11.5C16.62 11.5 15.5 10.38 15.5 9C15.5 7.93 16.17 7.03 17.11 6.67L15 4.56L16.06 3.5L19.78 7.22L19.77 7.23Z",
+    "mdi:close-thick": "M20 6.91L17.09 4L12 9.09L6.91 4L4 6.91L9.09 12L4 17.09L6.91 20L12 14.91L17.09 20L20 17.09L14.91 12L20 6.91Z"
+  };
+  class HaIcon extends HTMLElement {
+    set icon(name) {
+      this._icon = name;
+      this.innerHTML =
+        '<svg viewBox="0 0 24 24" style="display:block;width:var(--mdc-icon-size,24px);' +
+        'height:var(--mdc-icon-size,24px);fill:currentColor"><path d="' + (MDI[name] || "") + '"/></svg>';
+    }
+    get icon() {
+      return this._icon;
+    }
+  }
+  customElements.define("ha-icon", HaIcon);
 </script>
 
 <!-- Module, comme la ressource declaree dans Home Assistant : les fichiers de
@@ -86,7 +107,7 @@
       address: "1 Avenue du Général Sarrail", city: "Paris", cp: "75016", distance: 7.1,
       prices: { Gazole: [2.279, "2026-07-27T07:00:21+00:00"],
                 SP98:   [2.178, "2026-07-27T07:00:22+00:00"],
-                E10:    [2.095, "2026-07-23T06:59:34+00:00"] } },
+                E10:    [2.095, "2026-07-23T06:59:34+00:00", 45 * 24] } },
     { sid: "59800002", name: "E.LECLERC Lille (Fives)", brand: "Leclerc",
       address: "94 Rue de Lannoy", city: "Lille", cp: "59000", distance: 204.8,
       prices: { Gazole: [2.149, "2026-07-27T09:46:07+00:00"],
@@ -110,7 +131,7 @@
       prices: { Gazole: [2.278, "2026-07-31T07:32:47+00:00"],
                 SP98:   [2.138, "2026-07-27T09:09:29+00:00"],
                 E10:    [2.008, "2026-07-27T09:09:29+00:00"],
-                E85:    [0.829, "2026-07-30T09:03:17+00:00"] } },
+                E85:    [0.829, "2026-07-30T09:03:17+00:00", 3] } },
     { sid: "13013016", name: "RELAIS DES OLIVES", brand: "Total Access",
       address: "AVENUE FREDERIC MISTRAL", city: "Marseille", cp: "13013", distance: 659.9,
       prices: { Gazole: [2.215, "2026-07-31T00:01:00+00:00"],
@@ -119,6 +140,12 @@
                 E85:    [0.874, "2026-07-31T00:01:00+00:00"],
                 GPLc:   [0.981, "2026-07-31T00:01:00+00:00"] } }
   ];
+
+  /* Un troisieme element marque une rupture, en heures ecoulees depuis son
+     debut : la date est calculee a l'ouverture de la page, pour que la capture
+     montre toujours une rupture recente et une rupture prolongee. En rupture,
+     l'API ne donne plus de date de releve. */
+  const now = Date.now();
 
   /* Le `hass` minimal que lit la carte : uniquement `states`. */
   const states = {};
@@ -136,7 +163,8 @@
           city: station.city,
           postal_code: station.cp,
           distance: station.distance,
-          updated_date: entry[1]
+          updated_date: entry[2] ? null : entry[1],
+          shortage_since: entry[2] ? new Date(now - entry[2] * 3600000).toISOString() : null
         }
       };
     });

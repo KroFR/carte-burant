@@ -11,7 +11,7 @@
  * d'analyse et par les navigateurs anciens.
  */
 
-const CARD_VERSION = "1.0.6";
+const CARD_VERSION = "1.0.7";
 
 console.info(
   `%c 🙂 Prix Carburant Card %c v${CARD_VERSION} %c`,
@@ -76,6 +76,7 @@ const FR = {
   err_logos: "`logos` doit être une table `enseigne: fichier`",
   err_decimals: "`decimals` doit être un entier entre 0 et 10",
   err_map_link: "`map_link` doit être none, auto, google, apple ou waze",
+  err_shortage_stale_days: "`shortage_stale_days` doit être un nombre de jours positif ou nul",
   err_search: "`search` doit être un objet, `true` ou `false`",
   search_title: "Stations à proximité",
   search_origin: "Autour de {name} · {radius} km",
@@ -117,6 +118,7 @@ const FR = {
   ed_highlight: "Colorer le prix le plus bas / le plus haut",
   ed_more_info: "Clic sur une ligne = fiche de l'entité",
   ed_map_link: "Ouvrir la station sur une carte",
+  ed_shortage_stale_days: "Rupture prolongée au-delà de (jours)",
   ed_logo_path: "Préfixe des logos (ex. /local/images/brands/)",
 
   help_sort:
@@ -128,6 +130,8 @@ const FR = {
   help_more_info: "Ouvre la fiche de la première entité de la station.",
   help_map_link:
     "« Auto » suit l'appareil : choix de l'app sur Android, Plans sur iPhone, Google Maps sur PC.",
+  help_shortage_stale_days:
+    "Passé ce délai, un carburant en rupture s'affiche en croix rouge. 0 pour ne jamais le signaler.",
 
   sec_stations: "Stations",
   sec_stations_hint:
@@ -180,6 +184,20 @@ const FR = {
   lock_fuel: "Au moins un carburant doit rester sélectionné",
   price_of: "prix {fuel}",
   map_open: "Voir {name} sur la carte",
+  shortage: "Rupture",
+  shortage_since: "Rupture depuis le {date}",
+  shortage_stale: "Rupture prolongée, depuis le {date}",
+  shortage_last: "Dernier prix : {price}",
+  legend_shortage: "Rupture en cours",
+  legend_shortage_stale_one: "Rupture de plus de {days} jour",
+  legend_shortage_stale_other: "Rupture de plus de {days} jours",
+  ago_min: "{count} min",
+  ago_hour: "{count} h",
+  ago_day: "{count} j",
+  ago_week: "{count} sem.",
+  ago_month: "{count} mois",
+  ago_year_one: "{count} an",
+  ago_year_other: "{count} ans",
 
   ed_no_station: "Aucune station remontée par l'intégration.",
   ed_no_brand: "Aucune enseigne remontée par l'intégration.",
@@ -240,6 +258,7 @@ const EN = {
   err_logos: "`logos` must be a `brand: file` table",
   err_decimals: "`decimals` must be an integer between 0 and 10",
   err_map_link: "`map_link` must be none, auto, google, apple or waze",
+  err_shortage_stale_days: "`shortage_stale_days` must be a number of days, zero or more",
   err_search: "`search` must be an object, `true` or `false`",
   search_title: "Nearby stations",
   search_origin: "Around {name} · {radius} km",
@@ -281,6 +300,7 @@ const EN = {
   ed_highlight: "Colour the lowest / highest price",
   ed_more_info: "Clicking a row opens the entity dialog",
   ed_map_link: "Open the station on a map",
+  ed_shortage_stale_days: "Long shortage after (days)",
   ed_logo_path: "Logo prefix (e.g. /local/images/brands/)",
 
   help_sort:
@@ -292,6 +312,8 @@ const EN = {
   help_more_info: "Opens the dialog of the station's first entity.",
   help_map_link:
     "“Auto” follows the device: app picker on Android, Apple Maps on iPhone, Google Maps on desktop.",
+  help_shortage_stale_days:
+    "Past this delay, an out-of-stock fuel shows as a red cross. 0 to never flag it.",
 
   sec_stations: "Stations",
   sec_stations_hint:
@@ -343,6 +365,20 @@ const EN = {
   lock_fuel: "At least one fuel must stay selected",
   price_of: "{fuel} price",
   map_open: "Show {name} on a map",
+  shortage: "Out of stock",
+  shortage_since: "Out of stock since {date}",
+  shortage_stale: "Out of stock for a long time, since {date}",
+  shortage_last: "Last price: {price}",
+  legend_shortage: "Out of stock",
+  legend_shortage_stale_one: "Out of stock for over {days} day",
+  legend_shortage_stale_other: "Out of stock for over {days} days",
+  ago_min: "{count} min",
+  ago_hour: "{count} h",
+  ago_day: "{count} d",
+  ago_week: "{count} wk",
+  ago_month: "{count} mo",
+  ago_year_one: "{count} yr",
+  ago_year_other: "{count} yr",
 
   ed_no_station: "No station reported by the integration.",
   ed_no_brand: "No brand reported by the integration.",
@@ -432,6 +468,7 @@ const DEFAULTS = {
   logo_path: "",
   decimals: 3,
   highlight: true,
+  shortage_stale_days: 30,
   unit: "€/L",
   sort: "distance",
   sort_desc: false,
@@ -728,6 +765,19 @@ const STYLE = [
   "           object-fit: contain; vertical-align: middle; display: block; margin: 0 auto; }",
   ".min { color: var(--prix-carburant-color-min, #4caa40); font-weight: 700; }",
   ".max { color: var(--prix-carburant-color-max, #e05252); font-weight: 700; }",
+  /* Rupture : une icone a la place du prix, la duree en petit. Orange tant
+     qu'elle est recente, rouge au-dela de `shortage_stale_days`. */
+  ".shortage { display: inline-flex; align-items: center; gap: 3px; cursor: help;",
+  "  color: var(--prix-carburant-color-shortage, var(--warning-color, #ffa600)); }",
+  ".shortage.stale { color: var(--prix-carburant-color-shortage-stale, var(--error-color, #db4437)); }",
+  ".shortage ha-icon { --mdc-icon-size: 18px; }",
+  ".shortage small { font-size: 0.85em; color: var(--secondary-text-color); }",
+  /* Legende sous le tableau, seulement quand une rupture y figure. */
+  ".legend { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 6px 0;",
+  "  font-size: 0.85em; color: var(--secondary-text-color); }",
+  ".legend .shortage { cursor: default; gap: 4px; }",
+  ".legend .shortage span { color: var(--secondary-text-color); }",
+  ".legend ha-icon { --mdc-icon-size: 16px; }",
   ".left { text-align: left; }",
   ".center { text-align: center; }",
   ".right { text-align: right; }",
@@ -776,6 +826,7 @@ const STYLE = [
   "  table { font-size: 12px; }",
   "  th, td { padding: 3px 4px; }",
   "  img.logo { height: 18px; }",
+  "  .shortage ha-icon { --mdc-icon-size: 16px; }",
   "  .searchbar { gap: 4px; }",
   "  button.searchbtn { width: 36px; height: 36px; }",
   "  button.searchbtn ha-icon { --mdc-icon-size: 20px; }",
@@ -937,6 +988,42 @@ const stationLabel = function (attrs, sid) {
   if (name && name.toLowerCase() !== "undefined") return name;
   const brand = attrs && attrs.brand ? String(attrs.brand) + " " : "";
   return brand + sid;
+};
+
+/* ---------- ruptures ----------
+
+   En rupture, l'API ne donne plus de prix pour le carburant : l'integration
+   garde le dernier connu comme etat du sensor et renseigne `shortage_since`.
+   L'etat seul ferait donc passer un prix perime pour valable. Une rupture
+   declaree definitive disparait en revanche des donnees de l'integration : le
+   sensor reste fige sur ses dernieres valeurs, et la carte n'a aucun moyen de
+   la reconnaitre. Le seuil `shortage_stale_days` en rattrape une partie : bien
+   des ruptures dites temporaires durent des mois (151 sur 1 242 pour le
+   SP95-E10 dans le flux national du 27/09/2026). */
+const DAY_MS = 86400000;
+
+/* 12 min, 3 h, 2 j, 7 sem., 4 mois, 1 an : court, pour tenir dans la colonne
+   d'un prix. Une date dans le futur (horloges decalees) compte pour 0 min. */
+const shortAge = function (ms) {
+  const minutes = Math.max(0, Math.floor(ms / 60000));
+  if (minutes < 60) return t("ago_min", { count: minutes });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t("ago_hour", { count: hours });
+  const days = Math.floor(hours / 24);
+  if (days < 14) return t("ago_day", { count: days });
+  if (days < 60) return t("ago_week", { count: Math.floor(days / 7) });
+  if (days < 365) return t("ago_month", { count: Math.floor(days / 30) });
+  const years = Math.floor(days / 365);
+  return t(years > 1 ? "ago_year_other" : "ago_year_one", { count: years });
+};
+
+/* Etat affiche d'une rupture a l'instant `now`. `since` vaut `null` quand la
+   date de l'integration est illisible : la rupture reste signalee, sans duree
+   ni seuil. */
+const shortageView = function (shortage, staleDays, now) {
+  if (shortage.since === null) return { stale: false, age: "" };
+  const age = now - shortage.since;
+  return { stale: staleDays > 0 && age >= staleDays * DAY_MS, age: shortAge(age) };
 };
 
 /* ---------- lien vers une application de cartes ----------
@@ -1154,6 +1241,13 @@ class PrixCarburantCard extends HTMLElement {
     if (MAP_LINK_MODES.indexOf(cfg.map_link) === -1) {
       throw new Error(t("err_map_link"));
     }
+    /* Un nombre de jours, decimales admises ; `0` coupe le signalement des
+       ruptures prolongees. */
+    const staleDays = toNumber(cfg.shortage_stale_days, NaN);
+    if (!isFinite(staleDays) || staleDays < 0) {
+      throw new Error(t("err_shortage_stale_days"));
+    }
+    cfg.shortage_stale_days = staleDays;
     if (!cfg.columns || cfg.columns.length === 0) cfg.columns = DEFAULT_COLUMNS.slice();
     cfg.stations = cfg.stations.map(String);
     cfg.station_names = stringKeys(cfg.station_names);
@@ -1191,10 +1285,21 @@ class PrixCarburantCard extends HTMLElement {
   connectedCallback() {
     SEARCH_CARDS.add(this);
     if (this._config && this._hass) this._update();
+    /* Les durees de rupture vieillissent sans qu'aucun sensor ne change : une
+       horloge relance le calcul chaque minute tant qu'une rupture est
+       affichee. La carte ne se redessine que si un libelle de duree change. */
+    if (!this._clock) {
+      const self = this;
+      this._clock = setInterval(function () {
+        if (self._hasShortage && self._config && self._hass) self._update();
+      }, 60000);
+    }
   }
 
   disconnectedCallback() {
     SEARCH_CARDS.delete(this);
+    clearInterval(this._clock);
+    this._clock = null;
   }
 
   getCardSize() {
@@ -1379,7 +1484,7 @@ class PrixCarburantCard extends HTMLElement {
       const aEmpty = av === null || av === undefined;
       const bEmpty = bv === null || bv === undefined;
       if (aEmpty || bEmpty) {
-        if (aEmpty && bEmpty) return 0;
+        if (aEmpty && bEmpty) return self._compareShortages(a, b, active.key);
         return aEmpty ? 1 : -1;
       }
       let cmp;
@@ -1389,6 +1494,21 @@ class PrixCarburantCard extends HTMLElement {
       return self._stationName(a).localeCompare(self._stationName(b), "fr");
     });
     return rows;
+  }
+
+  /* Deux lignes sans prix pour la colonne triee : les ruptures passent avant
+     les cases vides, de la plus recente a la plus ancienne, quel que soit le
+     sens du tri. Une rupture recente a plus de chances d'etre bientot levee. */
+  _compareShortages(a, b, key) {
+    const sa = a.shortages ? a.shortages[key] : null;
+    const sb = b.shortages ? b.shortages[key] : null;
+    if (!sa && !sb) return 0;
+    if (!sa) return 1;
+    if (!sb) return -1;
+    const ta = sa.since === null ? -Infinity : sa.since;
+    const tb = sb.since === null ? -Infinity : sb.since;
+    if (ta === tb) return 0;
+    return tb > ta ? 1 : -1;
   }
 
   /* Des resultats de recherche remplacent les stations suivies. Une recherche
@@ -1433,6 +1553,8 @@ class PrixCarburantCard extends HTMLElement {
         }),
         ids: [],
         fuels: station.fuels,
+        /* Le service ne renvoie pas les ruptures. */
+        shortages: {},
         updated: null
       };
     });
@@ -1447,11 +1569,18 @@ class PrixCarburantCard extends HTMLElement {
       if (wanted.length && wanted.indexOf(r.sid) === -1) return;
       let station = byStation.get(r.sid);
       if (!station) {
-        station = { sid: r.sid, attrs: r.attrs, ids: [], fuels: {}, updated: null };
+        station = { sid: r.sid, attrs: r.attrs, ids: [], fuels: {}, shortages: {}, updated: null };
         byStation.set(r.sid, station);
       }
       station.ids.push(r.id);
-      if (r.price !== null) station.fuels[r.fuel] = r.price;
+      /* Un carburant en rupture n'a pas de prix : le dernier connu ne sert
+         plus qu'a l'infobulle, jamais au tri ni a la coloration. */
+      if (r.attrs.shortage_since) {
+        const since = Date.parse(r.attrs.shortage_since);
+        station.shortages[r.fuel] = { since: isFinite(since) ? since : null, last: r.price };
+      } else if (r.price !== null) {
+        station.fuels[r.fuel] = r.price;
+      }
       const stamp = r.attrs.updated_date ? Date.parse(r.attrs.updated_date) : NaN;
       if (isFinite(stamp) && (station.updated === null || stamp > station.updated)) {
         station.updated = stamp;
@@ -1522,6 +1651,14 @@ class PrixCarburantCard extends HTMLElement {
     this._watched = watched;
     this._stateCount = statesCount(this._hass);
     const rows = this._rows();
+    /* Un seul instant pour la signature et le rendu : les durees de rupture
+       affichees sont celles qui ont ete comparees. */
+    const now = Date.now();
+    const staleDays = this._config.shortage_stale_days;
+    this._now = now;
+    this._hasShortage = rows.some(function (r) {
+      return Object.keys(r.shortages).length > 0;
+    });
     const active = this._activeSort();
     const signature =
       active.key +
@@ -1538,7 +1675,16 @@ class PrixCarburantCard extends HTMLElement {
               return f + "=" + r.fuels[f];
             })
             .join(",");
-          return r.sid + "|" + prices + "|" + r.updated + "|" + r.attrs.distance;
+          const shortages = Object.keys(r.shortages)
+            .sort()
+            .map(function (f) {
+              const view = shortageView(r.shortages[f], staleDays, now);
+              return f + (view.stale ? "!" : "?") + view.age;
+            })
+            .join(",");
+          return (
+            r.sid + "|" + prices + "|" + shortages + "|" + r.updated + "|" + r.attrs.distance
+          );
         })
         .join(";");
     if (signature === this._signature) return;
@@ -1813,7 +1959,13 @@ class PrixCarburantCard extends HTMLElement {
 
   /* Un appel au service par carburant, en parallele. Les erreurs ne passent
      pas par les notifications de Home Assistant, qui en afficheraient une par
-     carburant : la carte les rapporte elle-meme, sur sa ligne d'etat. */
+     carburant : la carte les rapporte elle-meme, sur sa ligne d'etat.
+
+     La commande WebSocket est envoyee telle quelle plutot que par
+     `hass.callService` : une carte conteneur (pile, popup, mise en page...)
+     peut remplacer `callService` par une version qui ne transmet que ses
+     quatre premiers arguments. `return_response` se perdait alors, et le
+     service, qui exige une reponse, echouait a chaque carburant. */
   _runSearch() {
     const origin = this._search.origin;
     const entry = this._search.entry;
@@ -1826,14 +1978,13 @@ class PrixCarburantCard extends HTMLElement {
     notifySearch(entry, this);
     const calls = fuels.map(function (fuel) {
       return self._hass
-        .callService(
-          "prix_carburant",
-          "find_nearest_stations",
-          { entity_id: origin.id, fuel: fuel, distance: radius },
-          undefined,
-          false,
-          true
-        )
+        .callWS({
+          type: "call_service",
+          domain: "prix_carburant",
+          service: "find_nearest_stations",
+          service_data: { entity_id: origin.id, fuel: fuel, distance: radius },
+          return_response: true
+        })
         .then(
           function (res) {
             const stations = res && res.response ? res.response.stations : null;
@@ -1979,6 +2130,7 @@ class PrixCarburantCard extends HTMLElement {
 
     const tbody = document.createElement("tbody");
     const linkKey = this._mapLinkColumn(columns);
+    this._shortagesShown = new Set();
     rows.forEach(function (row) {
       const tr = document.createElement("tr");
       columns.forEach(function (c) {
@@ -1994,6 +2146,71 @@ class PrixCarburantCard extends HTMLElement {
     });
     table.appendChild(tbody);
     wrap.appendChild(table);
+    if (this._shortagesShown.size) wrap.appendChild(this._shortageLegend());
+  }
+
+  /* Case d'un carburant en rupture : une icone a la place du prix, suivie de
+     la duree. La date exacte et le dernier prix connu passent dans
+     l'infobulle. */
+  _shortageBadge(shortage) {
+    const cfg = this._config;
+    const view = shortageView(shortage, cfg.shortage_stale_days, this._now);
+    this._shortagesShown.add(view.stale ? "stale" : "recent");
+    const span = document.createElement("span");
+    span.className = view.stale ? "shortage stale" : "shortage";
+    const icon = document.createElement("ha-icon");
+    icon.icon = view.stale ? "mdi:close-thick" : "mdi:gas-station-off";
+    span.appendChild(icon);
+    if (view.age) {
+      const age = document.createElement("small");
+      age.textContent = view.age;
+      span.appendChild(age);
+    }
+    const lines = [
+      shortage.since === null
+        ? t("shortage")
+        : t(view.stale ? "shortage_stale" : "shortage_since", {
+            date: new Date(shortage.since).toLocaleString(currentLang === "fr" ? "fr-FR" : "en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+          })
+    ];
+    if (shortage.last !== null) {
+      const unit = cfg.unit ? " " + cfg.unit : "";
+      lines.push(t("shortage_last", { price: shortage.last.toFixed(cfg.decimals) + unit }));
+    }
+    span.title = lines.join("\n");
+    span.setAttribute("aria-label", lines.join(". "));
+    return span;
+  }
+
+  /* Legende des ruptures, limitee aux cas presents dans le tableau. */
+  _shortageLegend() {
+    const shown = this._shortagesShown;
+    const legend = document.createElement("div");
+    legend.className = "legend";
+    const add = function (className, icon, text) {
+      const item = document.createElement("span");
+      item.className = className;
+      const ico = document.createElement("ha-icon");
+      ico.icon = icon;
+      item.appendChild(ico);
+      const label = document.createElement("span");
+      label.textContent = text;
+      item.appendChild(label);
+      legend.appendChild(item);
+    };
+    if (shown.has("recent")) add("shortage", "mdi:gas-station-off", t("legend_shortage"));
+    if (shown.has("stale")) {
+      const days = this._config.shortage_stale_days;
+      const key = days > 1 ? "legend_shortage_stale_other" : "legend_shortage_stale_one";
+      add("shortage stale", "mdi:close-thick", t(key, { days: days }));
+    }
+    return legend;
   }
 
   /* Colonne qui porte le lien carte quand `map_link` est actif : `name` en
@@ -2049,6 +2266,11 @@ class PrixCarburantCard extends HTMLElement {
     td.className = column.align + " col-" + column.key;
 
     if (column.fuel) {
+      const shortage = row.shortages ? row.shortages[column.fuel] : null;
+      if (shortage) {
+        td.appendChild(this._shortageBadge(shortage));
+        return td;
+      }
       const price = row.fuels[column.fuel];
       if (typeof price !== "number") {
         td.textContent = "-";
@@ -2133,7 +2355,15 @@ class PrixCarburantCard extends HTMLElement {
 
 /* Champs de l'editeur ayant un texte d'aide sous le libelle. On n'en met que la
    ou le libelle ne suffit pas : une aide sous chaque champ ne se lit plus. */
-const EDITOR_HELPED = ["sort", "sortable", "unit", "decimals", "more_info", "map_link"];
+const EDITOR_HELPED = [
+  "sort",
+  "sortable",
+  "unit",
+  "decimals",
+  "more_info",
+  "map_link",
+  "shortage_stale_days"
+];
 
 const EDITOR_STYLE = [
   ":host { display: block; }",
@@ -2351,6 +2581,7 @@ class PrixCarburantCardEditor extends HTMLElement {
       { name: "unit", selector: { text: {} } },
       { name: "decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
       { name: "highlight", selector: { boolean: {} } },
+      { name: "shortage_stale_days", selector: { number: { min: 0, max: 365, mode: "box" } } },
       { name: "more_info", selector: { boolean: {} } },
       { name: "map_link", selector: { select: { mode: "dropdown", options: maps } } }
     ];
