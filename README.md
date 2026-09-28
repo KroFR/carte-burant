@@ -21,7 +21,7 @@ une colonne par carburant.
   le service de l'intégration, sans quitter le tableau de bord.
 - **Français et anglais**, carte et éditeur, suivant la langue de Home Assistant.
 
-Version de la carte : **1.0.7** · Home Assistant **2024.4+** (le sélecteur par entité
+Version de la carte : **1.0.8** · Home Assistant **2024.4+** (le sélecteur par entité
 demande 2026.6+, il est simplement ignoré avant).
 
 ## Installation
@@ -108,6 +108,7 @@ shortage_stale_days: 30       # rupture en croix rouge au-delà de N jours ; 0 =
 # ---- Recherche à proximité (absente = désactivée ; `true` = réglages par défaut)
 search:                            # carburants : à cocher sur la carte, choix enregistré
   default_radius: 5                 # km, de 1 à 30
+  # show_fuels: false               # masque les pastilles : tous les carburants sont cherchés
   # entity: person.moi              # centre de la recherche (voir « Recherche à proximité »)
 
 # ---- Interaction et fond ---------------------------------------------------
@@ -155,6 +156,7 @@ logos:
 | `shortage_stale_days` | number | `30` | Jours au-delà desquels une rupture passe en croix rouge (voir *Ruptures*). `0` : jamais. Négatif : carte d'erreur. |
 | `search` | object / bool | absent | Barre de recherche à proximité (voir *Recherche à proximité*). `true` : réglages par défaut. |
 | `search.default_radius` | number | `5` | Rayon initial en km, de 1 à 30 ; réglable ensuite avec − / + sur la carte. |
+| `search.show_fuels` | bool | `true` | Pastilles de choix des carburants sur la carte. `false` : masquées, la recherche porte sur tous les carburants disponibles (voir *Choix des carburants*). |
 | `search.entity` | string | auto | Centre de la recherche. Absent : la personne de l'utilisateur connecté, sinon `zone.home`. |
 | `more_info` | bool | `true` | Clic sur une ligne → fiche de l'entité. |
 | `map_link` | string | `none` | Lien vers la station sur une carte : `auto`, `google`, `apple`, `waze` (voir *Lien carte*). |
@@ -344,7 +346,7 @@ du rayon pour ce carburant ; les réponses sont fusionnées en une ligne par sta
 | **−** / **+** | Rayon, de 1 km en 1 km, entre 1 et 30 km. | Grisé à la borne. |
 | **🔍** | Lance la recherche. | Gris : prêt. **Bleu** : carburants ou rayon changés depuis la dernière recherche, ou carburant en erreur ; relancer les applique. **⌛** : recherche en cours, bouton inactif (pas de double lancement). Grisé : aucune position connue. |
 | **✕** | Efface les résultats et rend le tableau des stations suivies. | Présent dès qu'une recherche a abouti ou échoué. Une réponse encore en route est ignorée. |
-| Pastilles | Carburants de la prochaine recherche (voir *Choix des carburants*). | Bleu : coché. La dernière cochée est verrouillée. |
+| Pastilles | Carburants de la prochaine recherche (voir *Choix des carburants*). | Bleu : coché. La dernière cochée est verrouillée. Absentes avec `show_fuels: false`. |
 
 **Seul 🔍 interroge l'API.** Les pastilles, − et + ne font que préparer la prochaine
 recherche : rien n'est lancé au chargement, ni quand la position change.
@@ -366,12 +368,17 @@ Sur des résultats déjà affichés :
   n'avaient de prix que pour lui, sans nouvel appel ;
 - **cocher** un carburant absent des résultats allume 🔍 : il faut relancer pour l'obtenir.
 
+Avec `search.show_fuels: false`, la rangée de pastilles disparaît et la recherche porte sur
+**tous** les carburants proposés. Cette carte ignore alors le choix enregistré, sans
+l'effacer : il vaut toujours pour les cartes qui affichent les pastilles. Deux cartes qui ne
+diffèrent que par `show_fuels` ne partagent ni rayon ni résultats.
+
 ### Ce qui est enregistré
 
 | Réglage | Où | Durée | Portée |
 |---|---|---|---|
 | Carburants cochés | Données utilisateur de Home Assistant (`frontend/set_user_data`, clef `prix-carburant-card`) | Permanent | Le compte Home Assistant connecté : tous ses appareils, toutes ses cartes |
-| Rayon réglé avec − / + | Mémoire de la page | Jusqu'au rechargement, changement de vue compris | Les cartes de même réglage (`default_radius` et `search.entity`) |
+| Rayon réglé avec − / + | Mémoire de la page | Jusqu'au rechargement, changement de vue compris | Les cartes de même réglage (`default_radius`, `search.entity` et `show_fuels`) |
 | Résultats | Mémoire de la page | Jusqu'au rechargement, changement de vue compris | Les cartes de même réglage |
 | Rayon par défaut, position de référence | Configuration de la carte (YAML ou éditeur) | Permanent | Cette carte, pour tous les utilisateurs |
 
@@ -464,7 +471,7 @@ Sept sections repliables, dans l'ordre des décisions :
 | **Affichage** | `title`, `show_title`, `unit`, `decimals` (0 à 3 dans l'éditeur, jusqu'à 10 en YAML), `highlight`, `shortage_stale_days`, `more_info`, `map_link`. |
 | **Noms et villes** | Un champ nom et un champ ville par station affichée, plus les surcharges devenues orphelines. |
 | **Logos des enseignes** | Préfixe, puis un champ et un aperçu par enseigne détectée. |
-| **Recherche à proximité** | Interrupteur de la barre, rayon par défaut, position de référence (`search.entity`). Les carburants se cochent sur la carte. |
+| **Recherche à proximité** | Interrupteur de la barre, rayon par défaut, affichage du filtre des carburants (`show_fuels`), position de référence (`search.entity`). Les carburants se cochent sur la carte. |
 
 `background`, `color_min` et `color_max` ne sont pas exposés par l'éditeur : ils se règlent
 en YAML et l'éditeur les conserve intacts.

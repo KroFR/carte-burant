@@ -11,7 +11,7 @@
  * d'analyse et par les navigateurs anciens.
  */
 
-const CARD_VERSION = "1.0.7";
+const CARD_VERSION = "1.0.8";
 
 console.info(
   `%c 🙂 Prix Carburant Card %c v${CARD_VERSION} %c`,
@@ -98,6 +98,8 @@ const FR = {
   ed_search_enable_sub: "Au-dessus du tableau",
   ed_search_default_radius: "Rayon de recherche par défaut",
   ed_search_entity: "Position de référence",
+  ed_search_show_fuels: "Afficher le filtre des carburants",
+  help_search_show_fuels: "Masqué : la recherche porte sur tous les carburants disponibles.",
   help_search_entity:
     "Vide : la personne liée à l'utilisateur connecté, sinon le domicile (zone.home). À renseigner pour une tablette murale.",
 
@@ -219,6 +221,7 @@ const FR = {
   sum_decimals: "{count} décimales",
   sum_search_off: "désactivée",
   sum_search_on: "rayon de {radius} km",
+  sum_search_all_fuels: " · tous carburants",
   sum_no_override: "aucune surcharge",
   sum_override: "{count} surcharge",
   sum_overrides: "{count} surcharges",
@@ -280,6 +283,8 @@ const EN = {
   ed_search_enable_sub: "Above the table",
   ed_search_default_radius: "Default search radius",
   ed_search_entity: "Reference position",
+  ed_search_show_fuels: "Show the fuel filter",
+  help_search_show_fuels: "Hidden: the search covers every available fuel.",
   help_search_entity:
     "Empty: the person linked to the logged-in user, otherwise home (zone.home). Set it for a wall tablet.",
 
@@ -400,6 +405,7 @@ const EN = {
   sum_decimals: "{count} decimals",
   sum_search_off: "off",
   sum_search_on: "{radius} km radius",
+  sum_search_all_fuels: " · all fuels",
   sum_no_override: "no override",
   sum_override: "{count} override",
   sum_overrides: "{count} overrides",
@@ -491,7 +497,10 @@ const DEFAULTS = {
 const SEARCH_FUEL_CODES = ["E10", "SP95", "SP98", "Gazole", "E85", "GPLc"];
 
 const SEARCH_DEFAULTS = {
-  default_radius: 5
+  default_radius: 5,
+  /* Pastilles de choix des carburants sur la carte. Masquees, la recherche
+     porte sur tous les carburants proposes. */
+  show_fuels: true
 };
 
 /* Bornes du selecteur de l'integration. Au-dela, l'API ne rendrait de toute
@@ -508,7 +517,8 @@ const clampRadius = function (value) {
    (desactive). En mode strict (la carte), une valeur mal formee leve une
    erreur explicite, comme les autres options ; l'editeur se contente de la
    corriger pour rester utilisable. Les carburants ne se configurent pas : ils
-   se cochent sur la carte (voir `SEARCH_PREFS`). */
+   se cochent sur la carte (voir `SEARCH_PREFS`), et `show_fuels: false` masque
+   ces pastilles. */
 const normalizeSearch = function (value, strict) {
   if (value === undefined || value === null || value === false) return null;
   if (value === true) value = {};
@@ -517,6 +527,9 @@ const normalizeSearch = function (value, strict) {
     return null;
   }
   const out = Object.assign({}, value, { default_radius: clampRadius(value.default_radius) });
+  /* Seul `false` masque les pastilles : absente, la clef garde la valeur par
+     defaut. */
+  out.show_fuels = value.show_fuels !== false;
   /* Plus lue : l'editeur ne doit pas la recopier dans le YAML. */
   delete out.fuels;
   if (out.entity) out.entity = String(out.entity);
@@ -632,15 +645,19 @@ const searchOrigin = function (hass, search) {
 /* Etat des recherches, au niveau du module : il est partage par les cartes de
    la page et survit quand Home Assistant recree une carte (changement de vue,
    edition du tableau de bord). Une page n'a qu'un utilisateur connecte : la
-   clef tient donc a la configuration seule : entite de reference et rayon de
-   depart. Deux cartes reglees differemment ne melangent pas leurs resultats,
-   et changer le rayon de depart dans l'editeur repart de la nouvelle valeur.
+   clef tient donc a la configuration seule : entite de reference, rayon de
+   depart et affichage des pastilles. Deux cartes reglees differemment ne
+   melangent pas leurs resultats, et changer le rayon de depart dans l'editeur
+   repart de la nouvelle valeur. Une carte sans pastilles cherche tous les
+   carburants, une autre seulement ceux coches : partageant leurs resultats,
+   chacune jugerait perimee chaque recherche de l'autre.
    `radius` est celui de la prochaine recherche, modifiable sur la carte ; le
    resultat garde carburants et rayon avec lesquels il a ete obtenu. */
 const SEARCHES = new Map();
 
 const searchEntry = function (search) {
-  const key = (search.entity || "") + "|" + search.default_radius;
+  const key =
+    (search.entity || "") + "|" + search.default_radius + (search.show_fuels ? "" : "|all");
   let entry = SEARCHES.get(key);
   if (!entry) {
     entry = {
@@ -1632,7 +1649,10 @@ class PrixCarburantCard extends HTMLElement {
         origin: searchOrigin(this._hass, search),
         entry: entry,
         available: available,
-        fuels: selectedFuels(available)
+        /* Sans pastilles, rien a l'ecran n'expliquerait un carburant decoche
+           autrefois : la preference enregistree est ignoree ici, sans etre
+           effacee, car elle vaut toujours pour les cartes qui les affichent. */
+        fuels: search.show_fuels ? selectedFuels(available) : available.slice()
       };
       this._searchKey = entry.key;
     } else {
@@ -1899,9 +1919,10 @@ class PrixCarburantCard extends HTMLElement {
       );
     }
 
-    /* Un seul carburant propose : rien a choisir, pas de pastilles. */
+    /* Pastilles masquees par la configuration, ou un seul carburant propose :
+       rien a choisir. */
     const available = this._search.available;
-    if (available.length < 2) return wrap;
+    if (!this._config.search.show_fuels || available.length < 2) return wrap;
     const selected = this._search.fuels;
     const chips = document.createElement("div");
     chips.className = "searchfuels";
@@ -2507,11 +2528,17 @@ class PrixCarburantCardEditor extends HTMLElement {
     if (!next.title) delete next.title;
     if (!next.logo_path) delete next.logo_path;
     if (next.map_link === "none") delete next.map_link;
-    /* Recherche desactivee : pas de `search: null` dans le YAML. */
+    /* Recherche desactivee : pas de `search: null` dans le YAML, ni de
+       `show_fuels: true`, valeur par defaut. L'editeur garde, lui, la forme
+       complete : son interrupteur doit lire la valeur. */
     const search = normalizeSearch(next.search, false);
-    if (search) next.search = search;
-    else delete next.search;
-    this._config = Object.assign({}, DEFAULTS, next);
+    if (search) {
+      next.search = Object.assign({}, search);
+      if (next.search.show_fuels) delete next.search.show_fuels;
+    } else {
+      delete next.search;
+    }
+    this._config = Object.assign({}, DEFAULTS, next, { search: search });
     fireEvent(this, "config-changed", { config: next });
   }
 
@@ -2607,6 +2634,7 @@ class PrixCarburantCardEditor extends HTMLElement {
           }
         }
       },
+      { name: "show_fuels", selector: { boolean: {} } },
       { name: "entity", selector: { entity: { domain: ["person", "device_tracker", "zone"] } } }
     ];
   }
@@ -3301,7 +3329,9 @@ class PrixCarburantCardEditor extends HTMLElement {
       return t("ed_search_" + schema.name);
     };
     form.computeHelper = function (schema) {
-      return schema.name === "entity" ? t("help_search_entity") : "";
+      return schema.name === "entity" || schema.name === "show_fuels"
+        ? t("help_search_" + schema.name)
+        : "";
     };
     form.addEventListener("value-changed", function (ev) {
       ev.stopPropagation();
@@ -3443,7 +3473,8 @@ class PrixCarburantCardEditor extends HTMLElement {
 
     this._panelSearch._setSummary(
       cfg.search
-        ? t("sum_search_on", { radius: cfg.search.default_radius })
+        ? t("sum_search_on", { radius: cfg.search.default_radius }) +
+          (cfg.search.show_fuels ? "" : t("sum_search_all_fuels"))
         : t("sum_search_off")
     );
   }
