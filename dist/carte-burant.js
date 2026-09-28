@@ -3314,7 +3314,18 @@ class PrixCarburantCardEditor extends HTMLElement {
      Construite une fois, puis mise a jour par `_renderSearch` : un formulaire
      recree a chaque modification perdrait le focus a chaque frappe dans le
      champ du rayon. Les carburants ne s'y reglent pas : ils se cochent sur la
-     carte, et le choix est enregistre pour l'utilisateur. */
+     carte, et le choix est enregistre pour l'utilisateur.
+
+     Champ entite absent a la creation d'une carte : la configuration de
+     depart n'a pas de recherche, le formulaire etait donc construit masque, et
+     `hass` ne lui etait donne qu'une fois la recherche activee. Le rayon,
+     simple nombre, s'affichait quand meme. Le selecteur d'entite, seul de
+     l'editeur a dependre de `hass`, est en outre charge a la demande par
+     `ha-selector` : cree avant l'un comme l'autre, il restait vide. En
+     modification, la recherche deja active donnait tout d'emblee. Le
+     formulaire recoit donc `hass` des le premier rendu, il est recree quand la
+     section apparait, puis une derniere fois quand le selecteur d'entite est
+     enregistre. */
   _buildSearch() {
     const self = this;
     const wrap = document.createElement("div");
@@ -3329,8 +3340,18 @@ class PrixCarburantCardEditor extends HTMLElement {
     wrap.appendChild(row);
 
     const options = document.createElement("div");
+    this._searchOptions = options;
+    this._searchVisible = false;
+    this._searchForm = this._createSearchForm();
+    options.appendChild(this._searchForm);
+    wrap.appendChild(options);
+    return wrap;
+  }
 
+  _createSearchForm() {
+    const self = this;
     const form = document.createElement("ha-form");
+    form.hass = this._hass;
     form.schema = this._schemaSearch();
     form.computeLabel = function (schema) {
       return t("ed_search_" + schema.name);
@@ -3344,21 +3365,48 @@ class PrixCarburantCardEditor extends HTMLElement {
       ev.stopPropagation();
       self._emit({ search: Object.assign({}, self._config.search, ev.detail.value) });
     });
-    options.appendChild(form);
+    return form;
+  }
 
-    this._searchOptions = options;
-    this._searchForm = form;
-    wrap.appendChild(options);
-    return wrap;
+  /* Remplace le formulaire par un neuf : son selecteur d'entite est alors
+     cree avec `hass`, dans une section visible. Jamais pendant une saisie :
+     seulement a l'apparition de la section et a l'enregistrement du
+     selecteur. */
+  _resetSearchForm() {
+    const fresh = this._createSearchForm();
+    this._searchOptions.replaceChild(fresh, this._searchForm);
+    this._searchForm = fresh;
   }
 
   _renderSearch() {
     const search = this._config.search;
     this._searchSwitch.checked = !!search;
     this._searchOptions.style.display = search ? "" : "none";
-    if (!search) return;
     this._searchForm.hass = this._hass;
+    if (!search) {
+      this._searchVisible = false;
+      return;
+    }
+    if (!this._searchVisible) {
+      this._searchVisible = true;
+      this._resetSearchForm();
+      this._awaitEntitySelector();
+    }
     this._searchForm.data = search;
+  }
+
+  /* `ha-selector` charge `ha-selector-entity` au premier rendu d'un champ
+     entite : une seule attente, puis un formulaire neuf, le dernier. */
+  _awaitEntitySelector() {
+    if (this._entityWaiting || customElements.get("ha-selector-entity")) return;
+    this._entityWaiting = true;
+    const self = this;
+    customElements.whenDefined("ha-selector-entity").then(function () {
+      self._entityWaiting = false;
+      if (!self._searchVisible || !self._searchForm) return;
+      self._resetSearchForm();
+      self._searchForm.data = self._config.search;
+    });
   }
 
   /* ---------- assemblage ---------- */
