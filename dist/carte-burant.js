@@ -845,8 +845,15 @@ const STYLE = [
   "  img.logo { height: 18px; }",
   "  .shortage ha-icon { --mdc-icon-size: 16px; }",
   "  .searchbar { gap: 4px; }",
-  "  button.searchbtn { width: 36px; height: 36px; }",
-  "  button.searchbtn ha-icon { --mdc-icon-size: 20px; }",
+  "}",
+  /* Les boutons de recherche ne retrecissent pas sur un petit ecran : c'est
+     la qu'on les touche du doigt, et 36 px s'y manquaient facilement. Sur un
+     ecran tactile, ils passent a 44 px, la cible recommandee pour un doigt ;
+     l'icone garde ses 22 px, seule la zone de toucher grandit. A 360 px de
+     large, les quatre boutons prennent moins de 200 px et le texte a gauche
+     cede la place par ellipse. */
+  "@media (pointer: coarse) {",
+  "  button.searchbtn { width: 44px; height: 44px; }",
   "}"
 ].join("\n");
 

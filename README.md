@@ -545,8 +545,9 @@ de langue.
 | `--prix-carburant-color-shortage` | `--warning-color` | Icône d'une rupture en cours. |
 | `--prix-carburant-color-shortage-stale` | `--error-color` | Croix d'une rupture prolongée. |
 
-Sous 600 px de large, la carte réduit d'elle-même le texte, les marges, les logos et les
-boutons de recherche.
+Sous 600 px de large, la carte réduit d'elle-même le texte, les marges et les logos. Les
+boutons de recherche gardent leurs 40 px, et passent à 44 px sur écran tactile pour rester
+faciles à toucher ; le texte de la barre cède la place par ellipse.
 En vue *sections*, elle demande la pleine largeur (minimum 6 colonnes sur 12).
 
 La carte suit le thème de Home Assistant :
