@@ -424,6 +424,10 @@ sinon la personne liée à l'utilisateur connecté, si elle est localisée ; sin
 autour de la maison. Le nom du centre est affiché sous le titre, et la carte bascule
 d'elle-même quand la personne retrouve une position.
 
+`search.entity` sert quand ce centre ne convient pas : appareil connecté sous le compte
+d'une personne (une tablette murale suivrait sinon son téléphone), traceur du véhicule, ou
+zone précise.
+
 ### En cas d'erreur
 
 Si un carburant échoue, les autres s'affichent (« sans E85 (erreur) ») et 🔍 s'allume

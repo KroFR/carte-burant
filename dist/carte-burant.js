@@ -101,7 +101,7 @@ const FR = {
   ed_search_show_fuels: "Afficher le filtre des carburants",
   help_search_show_fuels: "Masqué : la recherche porte sur tous les carburants disponibles.",
   help_search_entity:
-    "Vide : la personne liée à l'utilisateur connecté, sinon le domicile (zone.home). À renseigner pour une tablette murale.",
+    "Vide : la personne liée au compte connecté, sinon le domicile (zone.home). À renseigner pour un appareil connecté sous le compte d'une personne (une tablette suivrait son téléphone), ou pour partir d'un traceur de véhicule ou d'une zone précise.",
 
   card_name: "Prix Carburant",
   card_description: "Tableau des prix des carburants : choix des stations et des colonnes.",
@@ -286,7 +286,7 @@ const EN = {
   ed_search_show_fuels: "Show the fuel filter",
   help_search_show_fuels: "Hidden: the search covers every available fuel.",
   help_search_entity:
-    "Empty: the person linked to the logged-in user, otherwise home (zone.home). Set it for a wall tablet.",
+    "Empty: the person linked to the signed-in account, otherwise home (zone.home). Set it for a device signed in with a person's account (a tablet would follow their phone), or to start from a vehicle tracker or a specific zone.",
 
   card_name: "Fuel Prices",
   card_description: "Fuel price table: pick your stations and columns.",

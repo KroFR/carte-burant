@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - **Les boutons de la barre de recherche ne rétrécissent plus sur téléphone.** Ils passaient à 36 px sous 600 px de large, justement là où on les touche du doigt. Ils gardent désormais 40 px (icône 22 px), et passent à 44 px sur écran tactile (`pointer: coarse`), la taille de cible recommandée. À 360 px de large, les quatre boutons tiennent et le texte de gauche cède la place par ellipse. Rapporté sur le forum HACF.
+- **Aide du champ « Position de référence » reformulée.** Elle conseillait de le renseigner « pour une tablette murale », alors qu'une tablette connectée sous un compte sans personne cherche déjà autour du domicile. Elle cite désormais les vrais cas : appareil connecté sous le compte d'une personne (une tablette suivrait son téléphone), traceur du véhicule, zone précise.
 
 ## [1.0.7] - 2026-09-27
 
