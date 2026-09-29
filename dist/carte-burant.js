@@ -80,7 +80,9 @@ const FR = {
   err_search: "`search` doit être un objet, `true` ou `false`",
   search_title: "Stations à proximité",
   search_origin: "Autour de {name} · {radius} km",
-  search_no_origin: "Aucune position connue : renseigne `search.entity`",
+  search_no_origin: "Aucune position connue : voir « Position de référence »",
+  search_entity_no_position: "{name} n'a pas de position GPS",
+  search_entity_unknown: "Entité introuvable : {name}",
   search_decrease: "Réduire le rayon de recherche",
   search_increase: "Augmenter le rayon de recherche",
   search_run: "Lancer la recherche à proximité",
@@ -153,7 +155,8 @@ const FR = {
   sec_names: "Noms et villes",
   sec_names_hint: "Laisser vide pour garder la valeur fournie par l'intégration.",
   sec_logos: "Logos des enseignes",
-  sec_logos_hint: "Fichier relatif au préfixe ci-dessous, ou URL / chemin absolu.",
+  sec_logos_hint:
+    "Vide : le logo fourni par l'intégration. Pour le remplacer : fichier relatif au préfixe ci-dessous, ou URL / chemin absolu.",
   sec_search: "Recherche à proximité",
   sec_search_hint:
     "Les stations les moins chères autour de toi, via le service de l'intégration. Lancée d'un clic sur la carte.",
@@ -211,6 +214,8 @@ const FR = {
   ed_station: "Station",
   ed_city: "Ville",
   ed_logo_placeholder: "fichier.png ou URL",
+  ed_logo_placeholder_default: "logo de l'intégration",
+  ed_logo_default: "Logo fourni par l'intégration. Remplir le champ pour le remplacer.",
   ed_logo_broken: "Image introuvable : {src}",
 
   sum_no_station: "aucune station détectée",
@@ -225,9 +230,9 @@ const FR = {
   sum_no_override: "aucune surcharge",
   sum_override: "{count} surcharge",
   sum_overrides: "{count} surcharges",
-  sum_no_logo: "aucun logo",
-  sum_logo: "{count} logo défini",
-  sum_logos: "{count} logos définis"
+  sum_no_logo: "logos de l'intégration",
+  sum_logo: "{count} logo remplacé",
+  sum_logos: "{count} logos remplacés"
 };
 
 const EN = {
@@ -265,7 +270,9 @@ const EN = {
   err_search: "`search` must be an object, `true` or `false`",
   search_title: "Nearby stations",
   search_origin: "Around {name} · {radius} km",
-  search_no_origin: "No known position: set `search.entity`",
+  search_no_origin: "No known position: see “Reference position”",
+  search_entity_no_position: "{name} has no GPS position",
+  search_entity_unknown: "Entity not found: {name}",
   search_decrease: "Reduce the search radius",
   search_increase: "Increase the search radius",
   search_run: "Run the nearby search",
@@ -338,7 +345,8 @@ const EN = {
   sec_names: "Names and cities",
   sec_names_hint: "Leave empty to keep the value reported by the integration.",
   sec_logos: "Brand logos",
-  sec_logos_hint: "File relative to the prefix below, or URL / absolute path.",
+  sec_logos_hint:
+    "Empty: the logo provided by the integration. To replace it: file relative to the prefix below, or URL / absolute path.",
   sec_search: "Nearby search",
   sec_search_hint: "The cheapest stations around you, through the integration's service. Run with a click on the card.",
 
@@ -395,6 +403,8 @@ const EN = {
   ed_station: "Station",
   ed_city: "City",
   ed_logo_placeholder: "file.png or URL",
+  ed_logo_placeholder_default: "integration logo",
+  ed_logo_default: "Logo provided by the integration. Fill the field to replace it.",
   ed_logo_broken: "Image not found: {src}",
 
   sum_no_station: "no station detected",
@@ -409,9 +419,9 @@ const EN = {
   sum_no_override: "no override",
   sum_override: "{count} override",
   sum_overrides: "{count} overrides",
-  sum_no_logo: "no logo",
-  sum_logo: "{count} logo set",
-  sum_logos: "{count} logos set"
+  sum_no_logo: "integration logos",
+  sum_logo: "{count} logo replaced",
+  sum_logos: "{count} logos replaced"
 };
 
 const STRINGS = { fr: FR, en: EN };
@@ -1224,8 +1234,16 @@ class PrixCarburantCard extends HTMLElement {
       const brand = r.attrs.brand;
       if (!brand) return;
       const key = brandKey(brand);
-      if (!key || map.has(key)) return;
-      map.set(key, { key: key, label: String(brand) });
+      if (!key) return;
+      /* Le logo de l'integration pour cette enseigne : l'editeur le montre
+         tant qu'aucun fichier ne le remplace. */
+      const picture = r.attrs.entity_picture ? String(r.attrs.entity_picture) : "";
+      const known = map.get(key);
+      if (known) {
+        if (!known.picture) known.picture = picture;
+        return;
+      }
+      map.set(key, { key: key, label: String(brand), picture: picture });
     });
     return Array.from(map.values()).sort(function (a, b) {
       return a.label.localeCompare(b.label);
@@ -1761,6 +1779,18 @@ class PrixCarburantCard extends HTMLElement {
     });
   }
 
+  /* Pas de centre localise. Quand `search.entity` est renseigne, conseiller de
+     le renseigner envoyait sur une fausse piste : c'est cette entite qui n'a
+     pas de coordonnees, typiquement une personne dont le telephone ne remonte
+     pas sa position. Sans entite, le message nomme le champ de l'editeur : la
+     clef YAML ne dit rien a qui regle la carte a la souris. */
+  _noOriginText() {
+    const entity = this._config.search.entity;
+    if (!entity) return t("search_no_origin");
+    if (!this._hass.states[entity]) return t("search_entity_unknown", { name: entity });
+    return t("search_entity_no_position", { name: this._originName() });
+  }
+
   _originName() {
     const state = this._hass.states[this._search.origin.id];
     return (state && state.attributes.friendly_name) || this._search.origin.id;
@@ -1896,7 +1926,7 @@ class PrixCarburantCard extends HTMLElement {
     sub.className = "searchsub";
     sub.textContent = origin.located
       ? t("search_origin", { name: this._originName(), radius: entry.radius })
-      : t("search_no_origin");
+      : this._noOriginText();
     /* Tronquee sur un telephone : le texte complet reste au survol. */
     sub.title = sub.textContent;
     info.appendChild(sub);
@@ -3321,13 +3351,13 @@ class PrixCarburantCardEditor extends HTMLElement {
       const known = brands.some(function (b) {
         return b.key === key;
       });
-      if (!known) brands.push({ key: key, label: key });
+      if (!known) brands.push({ key: key, label: key, picture: "" });
     });
 
     const signature =
       brands
         .map(function (b) {
-          return b.key + "=" + (tableValue(cfg.logos, b.key) || "");
+          return b.key + "=" + (tableValue(cfg.logos, b.key) || "") + "=" + b.picture;
         })
         .join(";") +
       "|" +
@@ -3355,6 +3385,20 @@ class PrixCarburantCardEditor extends HTMLElement {
       box.className = "logo-box";
       let src = tableValue(cfg.logos, brand.key) || "";
       if (src && cfg.logo_path && !isAbsoluteUrl(src)) src = cfg.logo_path + src;
+      /* Champ vide : l'apercu montre le logo de l'integration, celui que la
+         carte affiche. Un cadre vide laissait croire qu'il fallait tout
+         renseigner. La ligne reste estompee : rien n'est remplace. */
+      if (!src && brand.picture) {
+        const fallback = document.createElement("img");
+        fallback.src = brand.picture;
+        fallback.alt = "";
+        box.title = t("ed_logo_default");
+        fallback.addEventListener("error", function () {
+          box.title = "";
+          fallback.remove();
+        });
+        box.appendChild(fallback);
+      }
       if (src) {
         const preview = document.createElement("img");
         preview.src = src;
@@ -3371,9 +3415,13 @@ class PrixCarburantCardEditor extends HTMLElement {
       row.appendChild(self._label(brand.label, brand.key));
 
       row.appendChild(
-        self._textField(cfg.logos[brand.key], t("ed_logo_placeholder"), function (value) {
-          self._emitTable("logos", brand.key, value);
-        })
+        self._textField(
+          cfg.logos[brand.key],
+          t(brand.picture ? "ed_logo_placeholder_default" : "ed_logo_placeholder"),
+          function (value) {
+            self._emitTable("logos", brand.key, value);
+          }
+        )
       );
       body.appendChild(row);
     });

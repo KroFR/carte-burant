@@ -10,7 +10,8 @@ une colonne par carburant.
   `entity_id` : renommer une entité ne casse rien, et aucun sensor template n'est nécessaire.
 - **Choix et ordre** des stations et des colonnes, en YAML comme à la souris.
 - **Tri** configurable et **clic sur les en-têtes** pour trier à la volée.
-- **Noms et villes surchargeables**, **logos** par enseigne ou par station.
+- **Logos des enseignes** fournis par l'intégration, sans rien configurer ; remplaçables
+  par enseigne ou par station. **Noms et villes surchargeables.**
 - Prix le plus bas en vert, le plus haut en rouge, **ex æquo compris**.
 - **Ruptures signalées** : une icône et la durée à la place d'un prix périmé.
 - Éditeur graphique en sept sections repliables, alimenté par ce que l'intégration
@@ -124,15 +125,18 @@ station_names:
 station_cities:
   "45650001": Saran Nord
 
-# ---- Logos -----------------------------------------------------------------
+# ---- Logos (facultatif) ----------------------------------------------------
+# Sans rien ici, la carte affiche les logos fournis par l'intégration.
+# Ces lignes ne servent qu'à les remplacer, par des fichiers qui doivent exister
+# (ici dans config/www/images/brands/) : ne les copier qu'en connaissance de cause.
 # Clef = enseigne normalisée (minuscules, sans accent ni ponctuation)
 # ou station_id, qui l'emporte sur l'enseigne.
-logo_path: /local/images/brands/   # préfixe des valeurs *relatives* uniquement
-logos:
-  leclerc: leclerc.png
-  intermarche: intermarche.png
-  totalenergies: total.svg
-  "45650001": https://exemple.tld/logo-special.png
+# logo_path: /local/images/brands/   # préfixe des valeurs *relatives* uniquement
+# logos:
+#   leclerc: leclerc.png
+#   intermarche: intermarche.png
+#   totalenergies: total.svg
+#   "45650001": https://exemple.tld/logo-special.png
 ```
 
 ## Options
@@ -160,7 +164,7 @@ logos:
 | `search.entity` | string | auto | Centre de la recherche. Absent : la personne de l'utilisateur connecté, sinon `zone.home`. |
 | `more_info` | bool | `true` | Clic sur une ligne → fiche de l'entité. |
 | `map_link` | string | `none` | Lien vers la station sur une carte : `auto`, `google`, `apple`, `waze` (voir *Lien carte*). |
-| `logos` | map | `{}` | `enseigne: fichier` ou `station_id: fichier`. |
+| `logos` | map | `{}` | Facultatif. Remplace le logo fourni par l'intégration : `enseigne: fichier` ou `station_id: fichier` (voir *Logos*). |
 | `logo_path` | string | `""` | Préfixe ajouté devant les valeurs **relatives** de `logos`. |
 | `background` | string | — | Fond de la `ha-card`, n'importe quelle valeur CSS. |
 
@@ -454,13 +458,22 @@ infobulles.
 
 ## Logos
 
+**Les logos s'affichent sans rien configurer.** L'intégration Prix Carburant fournit celui
+de l'enseigne de chaque station (68 enseignes), tant que son option *Ajoute le logo de la
+marque en image d'entité* est cochée, ce qu'elle est par défaut. La carte le reprend tel
+quel.
+
+`logos` et `logo_path` ne servent qu'à **remplacer** ces logos, ou à en donner un aux
+enseignes que l'intégration ne connaît pas. Ils pointent vers des fichiers que vous
+fournissez : recopier l'exemple de configuration sans ces fichiers fait disparaître les
+logos au lieu de les afficher.
+
 Ordre de recherche pour chaque ligne :
 
 1. `logos[station_id]` — le plus spécifique ;
 2. `logos[enseigne normalisée]` — minuscules, sans accent ni ponctuation
    (`Intermarché Contact` → `intermarchecontact`, `TotalEnergies` → `totalenergies`) ;
-3. l'`entity_picture` fourni par l'intégration, si l'option *afficher les images* y est
-   activée ;
+3. le logo fourni par l'intégration (`entity_picture`), cas par défaut ;
 4. à défaut, le nom de l'enseigne en texte, puis `—`.
 
 `logo_path` n'est ajouté que devant les valeurs **relatives** : une URL complète
@@ -478,7 +491,7 @@ Sept sections repliables, dans l'ordre des décisions :
 | **Colonnes** | Interrupteur par colonne, ▲ / ▼ pour ordonner. |
 | **Affichage** | `title`, `show_title`, `unit`, `decimals` (0 à 3 dans l'éditeur, jusqu'à 10 en YAML), `highlight`, `shortage_stale_days`, `more_info`, `map_link`. |
 | **Noms et villes** | Un champ nom et un champ ville par station affichée, plus les surcharges devenues orphelines. |
-| **Logos des enseignes** | Préfixe, puis un champ et un aperçu par enseigne détectée. |
+| **Logos des enseignes** | Préfixe (`logo_path`), puis un champ et un aperçu par enseigne détectée (`logos`). Champ vide : l'aperçu, estompé, montre le logo fourni par l'intégration, celui que la carte affiche. Un logo par station (`logos` avec un `station_id`) s'ajoute en YAML ; l'éditeur le montre ensuite. |
 | **Recherche à proximité** | Interrupteur de la barre, rayon par défaut, affichage du filtre des carburants (`show_fuels`), position de référence (`search.entity`). Les carburants se cochent sur la carte. |
 
 `background`, `color_min` et `color_max` ne sont pas exposés par l'éditeur : ils se règlent
@@ -588,8 +601,28 @@ ne vend ce carburant.
 possibles : version de l'intégration Prix Carburant sans le service
 `find_nearest_stations`, API des prix indisponible, ou entité de `search.entity` inconnue.
 
-**« Aucune position connue »** : ni `search.entity`, ni personne localisée pour
-l'utilisateur connecté, ni `zone.home` avec des coordonnées.
+**« Aucune position connue : voir « Position de référence » »** : aucune position de
+référence choisie (`search.entity`), ni personne localisée pour l'utilisateur connecté, ni
+`zone.home` avec des coordonnées. Choisir une personne, un traceur ou une zone dans le champ
+*Position de référence* de l'éditeur, section *Recherche à proximité*.
+
+**« Marc n'a pas de position GPS »** : l'entité choisie comme position de référence
+(`search.entity`) existe mais n'a ni
+`latitude` ni `longitude`. Le vérifier dans *Outils de développement → États*. Pour une
+personne, sa position vient du téléphone rattaché à son compte (*Paramètres → Personnes*),
+à condition que l'application Companion remonte la localisation : dans l'application,
+*Paramètres → Application Companion → Gérer les capteurs*, activer la localisation en
+arrière-plan, avec l'autorisation de localisation du téléphone réglée sur *Toujours*. Le
+capteur « lieu géocodé » donne une adresse, pas une position : il ne sert pas ici. Pour
+chercher autour de son téléphone, le plus simple reste de laisser `search.entity` vide.
+
+**« Entité introuvable : … »** : l'entité choisie comme position de référence
+(`search.entity`) n'existe pas (faute de frappe, entité renommée ou supprimée).
+
+**Aucun logo ne s'affiche** — le plus souvent, `logos` et `logo_path` ont été recopiés de
+l'exemple sans les fichiers correspondants. Les retirer : la carte reprend les logos de
+l'intégration. Sinon, vérifier que l'option *Ajoute le logo de la marque en image d'entité*
+est cochée dans l'intégration.
 
 **Un logo ne s'affiche pas** — dans l'éditeur, le cadre d'aperçu passe en rouge et
 l'infobulle donne l'URL réellement demandée : c'est en général `logo_path` qui manque ou
