@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [1.0.8] - 2026-09-28
+## [1.0.8] - 2026-09-29
 
 ### Added
 - **`search.show_fuels` masque les pastilles de carburant de la recherche.** Avec `false`, la rangée disparaît et la recherche porte sur tous les carburants disponibles. La préférence enregistrée (`search_off`) est ignorée par cette carte, sans être effacée : un carburant décoché autrefois filtrerait sinon les résultats sans que rien à l'écran ne l'explique, et le choix vaut toujours pour les cartes qui affichent les pastilles. `show_fuels` entre dans la clef de partage des recherches : deux cartes qui ne diffèrent que par ce réglage ne se contredisent plus sur les résultats. Réglable dans l'éditeur, section Recherche à proximité, dont le résumé le signale. Suggéré sur le forum HACF.
