@@ -10,7 +10,8 @@ une colonne par carburant.
   `entity_id` : renommer une entité ne casse rien, et aucun sensor template n'est nécessaire.
 - **Choix et ordre** des stations et des colonnes, en YAML comme à la souris.
 - **Tri** configurable et **clic sur les en-têtes** pour trier à la volée.
-- **Noms et villes surchargeables**, **logos** par enseigne ou par station.
+- **Logos des enseignes** fournis par l'intégration, sans rien configurer ; remplaçables
+  par enseigne ou par station. **Noms et villes surchargeables.**
 - Prix le plus bas en vert, le plus haut en rouge, **ex æquo compris**.
 - **Ruptures signalées** : une icône et la durée à la place d'un prix périmé.
 - Éditeur graphique en sept sections repliables, alimenté par ce que l'intégration
@@ -21,7 +22,7 @@ une colonne par carburant.
   le service de l'intégration, sans quitter le tableau de bord.
 - **Français et anglais**, carte et éditeur, suivant la langue de Home Assistant.
 
-Version de la carte : **1.0.7** · Home Assistant **2024.4+** (le sélecteur par entité
+Version de la carte : **1.0.8** · Home Assistant **2024.4+** (le sélecteur par entité
 demande 2026.6+, il est simplement ignoré avant).
 
 ## Installation
@@ -108,6 +109,7 @@ shortage_stale_days: 30       # rupture en croix rouge au-delà de N jours ; 0 =
 # ---- Recherche à proximité (absente = désactivée ; `true` = réglages par défaut)
 search:                            # carburants : à cocher sur la carte, choix enregistré
   default_radius: 5                 # km, de 1 à 30
+  # show_fuels: false               # masque les pastilles : tous les carburants sont cherchés
   # entity: person.moi              # centre de la recherche (voir « Recherche à proximité »)
 
 # ---- Interaction et fond ---------------------------------------------------
@@ -123,15 +125,18 @@ station_names:
 station_cities:
   "45650001": Saran Nord
 
-# ---- Logos -----------------------------------------------------------------
+# ---- Logos (facultatif) ----------------------------------------------------
+# Sans rien ici, la carte affiche les logos fournis par l'intégration.
+# Ces lignes ne servent qu'à les remplacer, par des fichiers qui doivent exister
+# (ici dans config/www/images/brands/) : ne les copier qu'en connaissance de cause.
 # Clef = enseigne normalisée (minuscules, sans accent ni ponctuation)
 # ou station_id, qui l'emporte sur l'enseigne.
-logo_path: /local/images/brands/   # préfixe des valeurs *relatives* uniquement
-logos:
-  leclerc: leclerc.png
-  intermarche: intermarche.png
-  totalenergies: total.svg
-  "45650001": https://exemple.tld/logo-special.png
+# logo_path: /local/images/brands/   # préfixe des valeurs *relatives* uniquement
+# logos:
+#   leclerc: leclerc.png
+#   intermarche: intermarche.png
+#   totalenergies: total.svg
+#   "45650001": https://exemple.tld/logo-special.png
 ```
 
 ## Options
@@ -155,10 +160,11 @@ logos:
 | `shortage_stale_days` | number | `30` | Jours au-delà desquels une rupture passe en croix rouge (voir *Ruptures*). `0` : jamais. Négatif : carte d'erreur. |
 | `search` | object / bool | absent | Barre de recherche à proximité (voir *Recherche à proximité*). `true` : réglages par défaut. |
 | `search.default_radius` | number | `5` | Rayon initial en km, de 1 à 30 ; réglable ensuite avec − / + sur la carte. |
+| `search.show_fuels` | bool | `true` | Pastilles de choix des carburants sur la carte. `false` : masquées, la recherche porte sur tous les carburants disponibles (voir *Choix des carburants*). |
 | `search.entity` | string | auto | Centre de la recherche. Absent : la personne de l'utilisateur connecté, sinon `zone.home`. |
 | `more_info` | bool | `true` | Clic sur une ligne → fiche de l'entité. |
 | `map_link` | string | `none` | Lien vers la station sur une carte : `auto`, `google`, `apple`, `waze` (voir *Lien carte*). |
-| `logos` | map | `{}` | `enseigne: fichier` ou `station_id: fichier`. |
+| `logos` | map | `{}` | Facultatif. Remplace le logo fourni par l'intégration : `enseigne: fichier` ou `station_id: fichier` (voir *Logos*). |
 | `logo_path` | string | `""` | Préfixe ajouté devant les valeurs **relatives** de `logos`. |
 | `background` | string | — | Fond de la `ha-card`, n'importe quelle valeur CSS. |
 
@@ -174,7 +180,7 @@ Identifiants acceptés, en plus des carburants :
 | Clef | En-tête | Contenu |
 |---|---|---|
 | `logo` | *(vide)* | Logo de l'enseigne, sinon son nom en texte, sinon `—`. |
-| `name` | Station | Nom, surchargeable par `station_names`. |
+| `name` | Station | Nom, surchargeable par `station_names`. Tronqué sur une ligne s'il déborde : un clic sur la ligne le déploie. |
 | `brand` | Enseigne | Attribut `brand`. |
 | `address` | Adresse | Attribut `address`. |
 | `city` | Ville | Ville, surchargeable par `station_cities`. |
@@ -304,6 +310,10 @@ Avec `map_link`, le nom de la station devient un lien qui ouvre sa localisation 
 application de cartes — pour y jeter un œil ou lancer un itinéraire. Désactivé par défaut
 (`none`), le clic sur la ligne reste alors seul en jeu.
 
+Un nom trop long pour sa colonne est tronqué par une ellipse. Un clic ailleurs sur la ligne
+le déploie (et replie celui qui l'était) ; le clic suivant ouvre la fiche de l'entité si
+`more_info` est actif. Le nom, lui, ouvre toujours son lien du premier coup.
+
 Sans colonne `name` affichée, le lien se pose sur la première colonne d'identité présente :
 `city`, puis `address`, puis `brand`. Il est signalé par un soulignement en pointillés, et
 son infobulle nomme toujours la station qui va s'ouvrir. Un tiret (valeur absente) n'est
@@ -344,7 +354,7 @@ du rayon pour ce carburant ; les réponses sont fusionnées en une ligne par sta
 | **−** / **+** | Rayon, de 1 km en 1 km, entre 1 et 30 km. | Grisé à la borne. |
 | **🔍** | Lance la recherche. | Gris : prêt. **Bleu** : carburants ou rayon changés depuis la dernière recherche, ou carburant en erreur ; relancer les applique. **⌛** : recherche en cours, bouton inactif (pas de double lancement). Grisé : aucune position connue. |
 | **✕** | Efface les résultats et rend le tableau des stations suivies. | Présent dès qu'une recherche a abouti ou échoué. Une réponse encore en route est ignorée. |
-| Pastilles | Carburants de la prochaine recherche (voir *Choix des carburants*). | Bleu : coché. La dernière cochée est verrouillée. |
+| Pastilles | Carburants de la prochaine recherche (voir *Choix des carburants*). | Bleu : coché. La dernière cochée est verrouillée. Absentes avec `show_fuels: false`. |
 
 **Seul 🔍 interroge l'API.** Les pastilles, − et + ne font que préparer la prochaine
 recherche : rien n'est lancé au chargement, ni quand la position change.
@@ -366,12 +376,17 @@ Sur des résultats déjà affichés :
   n'avaient de prix que pour lui, sans nouvel appel ;
 - **cocher** un carburant absent des résultats allume 🔍 : il faut relancer pour l'obtenir.
 
+Avec `search.show_fuels: false`, la rangée de pastilles disparaît et la recherche porte sur
+**tous** les carburants proposés. Cette carte ignore alors le choix enregistré, sans
+l'effacer : il vaut toujours pour les cartes qui affichent les pastilles. Deux cartes qui ne
+diffèrent que par `show_fuels` ne partagent ni rayon ni résultats.
+
 ### Ce qui est enregistré
 
 | Réglage | Où | Durée | Portée |
 |---|---|---|---|
 | Carburants cochés | Données utilisateur de Home Assistant (`frontend/set_user_data`, clef `prix-carburant-card`) | Permanent | Le compte Home Assistant connecté : tous ses appareils, toutes ses cartes |
-| Rayon réglé avec − / + | Mémoire de la page | Jusqu'au rechargement, changement de vue compris | Les cartes de même réglage (`default_radius` et `search.entity`) |
+| Rayon réglé avec − / + | Mémoire de la page | Jusqu'au rechargement, changement de vue compris | Les cartes de même réglage (`default_radius`, `search.entity` et `show_fuels`) |
 | Résultats | Mémoire de la page | Jusqu'au rechargement, changement de vue compris | Les cartes de même réglage |
 | Rayon par défaut, position de référence | Configuration de la carte (YAML ou éditeur) | Permanent | Cette carte, pour tous les utilisateurs |
 
@@ -417,6 +432,10 @@ sinon la personne liée à l'utilisateur connecté, si elle est localisée ; sin
 autour de la maison. Le nom du centre est affiché sous le titre, et la carte bascule
 d'elle-même quand la personne retrouve une position.
 
+`search.entity` sert quand ce centre ne convient pas : appareil connecté sous le compte
+d'une personne (une tablette murale suivrait sinon son téléphone), traceur du véhicule, ou
+zone précise.
+
 ### En cas d'erreur
 
 Si un carburant échoue, les autres s'affichent (« sans E85 (erreur) ») et 🔍 s'allume
@@ -439,13 +458,22 @@ infobulles.
 
 ## Logos
 
+**Les logos s'affichent sans rien configurer.** L'intégration Prix Carburant fournit celui
+de l'enseigne de chaque station (68 enseignes), tant que son option *Ajoute le logo de la
+marque en image d'entité* est cochée, ce qu'elle est par défaut. La carte le reprend tel
+quel.
+
+`logos` et `logo_path` ne servent qu'à **remplacer** ces logos, ou à en donner un aux
+enseignes que l'intégration ne connaît pas. Ils pointent vers des fichiers que vous
+fournissez : recopier l'exemple de configuration sans ces fichiers fait disparaître les
+logos au lieu de les afficher.
+
 Ordre de recherche pour chaque ligne :
 
 1. `logos[station_id]` — le plus spécifique ;
 2. `logos[enseigne normalisée]` — minuscules, sans accent ni ponctuation
    (`Intermarché Contact` → `intermarchecontact`, `TotalEnergies` → `totalenergies`) ;
-3. l'`entity_picture` fourni par l'intégration, si l'option *afficher les images* y est
-   activée ;
+3. le logo fourni par l'intégration (`entity_picture`), cas par défaut ;
 4. à défaut, le nom de l'enseigne en texte, puis `—`.
 
 `logo_path` n'est ajouté que devant les valeurs **relatives** : une URL complète
@@ -463,8 +491,8 @@ Sept sections repliables, dans l'ordre des décisions :
 | **Colonnes** | Interrupteur par colonne, ▲ / ▼ pour ordonner. |
 | **Affichage** | `title`, `show_title`, `unit`, `decimals` (0 à 3 dans l'éditeur, jusqu'à 10 en YAML), `highlight`, `shortage_stale_days`, `more_info`, `map_link`. |
 | **Noms et villes** | Un champ nom et un champ ville par station affichée, plus les surcharges devenues orphelines. |
-| **Logos des enseignes** | Préfixe, puis un champ et un aperçu par enseigne détectée. |
-| **Recherche à proximité** | Interrupteur de la barre, rayon par défaut, position de référence (`search.entity`). Les carburants se cochent sur la carte. |
+| **Logos des enseignes** | Préfixe (`logo_path`), puis un champ et un aperçu par enseigne détectée (`logos`). Champ vide : l'aperçu, estompé, montre le logo fourni par l'intégration, celui que la carte affiche. Un logo par station (`logos` avec un `station_id`) s'ajoute en YAML ; l'éditeur le montre ensuite. |
+| **Recherche à proximité** | Interrupteur de la barre, rayon par défaut, affichage du filtre des carburants (`show_fuels`), position de référence (`search.entity`). Les carburants se cochent sur la carte. |
 
 `background`, `color_min` et `color_max` ne sont pas exposés par l'éditeur : ils se règlent
 en YAML et l'éditeur les conserve intacts.
@@ -538,8 +566,9 @@ de langue.
 | `--prix-carburant-color-shortage` | `--warning-color` | Icône d'une rupture en cours. |
 | `--prix-carburant-color-shortage-stale` | `--error-color` | Croix d'une rupture prolongée. |
 
-Sous 600 px de large, la carte réduit d'elle-même le texte, les marges, les logos et les
-boutons de recherche.
+Sous 600 px de large, la carte réduit d'elle-même le texte, les marges et les logos. Les
+boutons de recherche gardent leurs 40 px, et passent à 44 px sur écran tactile pour rester
+faciles à toucher ; le texte de la barre cède la place par ellipse.
 En vue *sections*, elle demande la pleine largeur (minimum 6 colonnes sur 12).
 
 La carte suit le thème de Home Assistant :
@@ -572,8 +601,28 @@ ne vend ce carburant.
 possibles : version de l'intégration Prix Carburant sans le service
 `find_nearest_stations`, API des prix indisponible, ou entité de `search.entity` inconnue.
 
-**« Aucune position connue »** : ni `search.entity`, ni personne localisée pour
-l'utilisateur connecté, ni `zone.home` avec des coordonnées.
+**« Aucune position connue : voir « Position de référence » »** : aucune position de
+référence choisie (`search.entity`), ni personne localisée pour l'utilisateur connecté, ni
+`zone.home` avec des coordonnées. Choisir une personne, un traceur ou une zone dans le champ
+*Position de référence* de l'éditeur, section *Recherche à proximité*.
+
+**« Marc n'a pas de position GPS »** : l'entité choisie comme position de référence
+(`search.entity`) existe mais n'a ni
+`latitude` ni `longitude`. Le vérifier dans *Outils de développement → États*. Pour une
+personne, sa position vient du téléphone rattaché à son compte (*Paramètres → Personnes*),
+à condition que l'application Companion remonte la localisation : dans l'application,
+*Paramètres → Application Companion → Gérer les capteurs*, activer la localisation en
+arrière-plan, avec l'autorisation de localisation du téléphone réglée sur *Toujours*. Le
+capteur « lieu géocodé » donne une adresse, pas une position : il ne sert pas ici. Pour
+chercher autour de son téléphone, le plus simple reste de laisser `search.entity` vide.
+
+**« Entité introuvable : … »** : l'entité choisie comme position de référence
+(`search.entity`) n'existe pas (faute de frappe, entité renommée ou supprimée).
+
+**Aucun logo ne s'affiche** — le plus souvent, `logos` et `logo_path` ont été recopiés de
+l'exemple sans les fichiers correspondants. Les retirer : la carte reprend les logos de
+l'intégration. Sinon, vérifier que l'option *Ajoute le logo de la marque en image d'entité*
+est cochée dans l'intégration.
 
 **Un logo ne s'affiche pas** — dans l'éditeur, le cadre d'aperçu passe en rouge et
 l'infobulle donne l'URL réellement demandée : c'est en général `logo_path` qui manque ou
