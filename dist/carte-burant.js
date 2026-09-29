@@ -771,7 +771,17 @@ const STYLE = [
   "tbody tr:nth-child(even) td { background: var(--prix-carburant-stripe, rgba(127,127,127,0.12)); }",
   "tbody tr:hover td { background: var(--prix-carburant-hover, rgba(127,127,127,0.22)); }",
   "tbody tr.clickable { cursor: pointer; }",
-  "td.col-name { white-space: normal; overflow-wrap: break-word; }",
+  /* Nom de station sur une ligne. `max-width: 0` retire le nom du calcul de
+     largeur du tableau : la colonne garde la part que lui donne META, et un
+     nom trop long y est tronque par une ellipse, au lieu d'elargir la colonne
+     ou de s'y replier sur plusieurs lignes. Le texte reste entier dans le
+     DOM : un lecteur d'ecran le lit en entier, et l'infobulle le montre.
+     Le plancher de 6em garde une dizaine de lettres lisibles quand les prix
+     prennent toute la largeur d'un telephone : sans lui, la colonne tombait
+     a quelques lettres, moins que la largeur des noms replies d'avant. */
+  "td.col-name { max-width: 0; min-width: 6em; }",
+  ".sname { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
+  ".sname.expanded { white-space: normal; overflow-wrap: anywhere; }",
   /* Lien carte : la couleur du texte, un souligne pointille pour le signaler.
      Proprietes separees plutot que le raccourci `underline dotted` : un
      navigateur qui ignore le style du trait garde au moins le soulignement. */
@@ -1133,6 +1143,9 @@ class PrixCarburantCard extends HTMLElement {
        configuration. Remis a zero a chaque setConfig. */
     this._sortKey = null;
     this._sortDesc = null;
+    /* Station dont le nom tronque a ete deploye : garde d'un rendu a l'autre,
+       une mise a jour des prix ne doit pas le replier sous le doigt. */
+    this._expandedName = null;
     /* Sensors de l'integration reperes au dernier passage, et nombre total
        d'entites : de quoi ecarter sans travail les `hass` sans rapport. */
     this._watched = null;
@@ -1280,6 +1293,7 @@ class PrixCarburantCard extends HTMLElement {
     this._config = cfg;
     this._sortKey = null;
     this._sortDesc = null;
+    this._expandedName = null;
     this._signature = "";
     this._watched = null;
     this._update();
@@ -2164,12 +2178,23 @@ class PrixCarburantCard extends HTMLElement {
       columns.forEach(function (c) {
         tr.appendChild(self._cell(c, row, levels, linkKey));
       });
-      if (cfg.more_info && row.ids.length) {
-        tr.classList.add("clickable");
-        tr.addEventListener("click", function () {
+      /* Le clic sur la ligne deplie d'abord un nom tronque ; ensuite, ou si le
+         nom est entier, il ouvre la fiche de l'entite. Sans fiche a ouvrir, il
+         replie le nom deploye. Le nom lui-meme garde son lien : voir
+         `_fillStationName`. */
+      const moreInfo = cfg.more_info && row.ids.length > 0;
+      if (moreInfo) tr.classList.add("clickable");
+      tr.addEventListener("click", function () {
+        const name = tr.querySelector(".sname");
+        if (name && !name.classList.contains("expanded") && name.scrollWidth > name.clientWidth) {
+          self._expandName(name, row.sid);
+        } else if (moreInfo) {
           fireEvent(self, "hass-more-info", { entityId: row.ids[0] });
-        });
-      }
+        } else if (name && name.classList.contains("expanded")) {
+          name.classList.remove("expanded");
+          self._expandedName = null;
+        }
+      });
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
@@ -2259,6 +2284,51 @@ class PrixCarburantCard extends HTMLElement {
   /* Remplit une cellule d'identite : lien carte quand la colonne le porte et
      que la station est localisable, texte simple sinon. Le tiret des valeurs
      absentes n'est jamais un lien. */
+  /* Nom de station, tronque par une ellipse quand il deborde de sa colonne.
+     Le deplier passe par la ligne (voir `_render`) : le lien du nom s'ouvre
+     toujours du premier coup. L'intercepter pour deplier d'abord faisait un
+     lien qui, parfois, ne s'ouvrait pas ; et un script qui ecoute les clics
+     en capture (visionneuse, extension) l'ouvrait quand meme. Sans lien, le
+     nom fait partie de la ligne et deplie comme elle. La troncature se
+     constate au moment du clic (`scrollWidth > clientWidth`) : rien a mesurer
+     au rendu, rien a recalculer quand la carte change de largeur. */
+  _fillStationName(td, row, carriesLink) {
+    const name = this._stationName(row);
+    const url = carriesLink ? mapLinkUrl(this._config.map_link, row.attrs, name) : "";
+    const el = document.createElement(url ? "a" : "span");
+    el.className = "sname";
+    el.textContent = name;
+    if (url) {
+      /* Memes precautions que `_fillIdentity` : pas d'adresse du tableau de
+         bord transmise au service de cartes. */
+      el.classList.add("maplink");
+      el.href = url;
+      el.target = "_blank";
+      el.rel = "noopener noreferrer";
+      el.title = t("map_open", { name: name });
+    } else {
+      el.title = name;
+    }
+    if (this._expandedName === row.sid) el.classList.add("expanded");
+    if (url) {
+      /* Sans quoi le clic remonterait a la ligne, qui deplierait le nom ou
+         ouvrirait la fiche de l'entite en meme temps que le lien. */
+      el.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+      });
+    }
+    td.appendChild(el);
+  }
+
+  /* Un seul nom deploye a la fois. */
+  _expandName(el, sid) {
+    this.shadowRoot.querySelectorAll(".sname.expanded").forEach(function (other) {
+      other.classList.remove("expanded");
+    });
+    el.classList.add("expanded");
+    this._expandedName = sid;
+  }
+
   _fillIdentity(td, text, row, carriesLink) {
     const url =
       carriesLink && text !== "-"
@@ -2341,7 +2411,7 @@ class PrixCarburantCard extends HTMLElement {
         break;
       }
       case "name": {
-        this._fillIdentity(td, this._stationName(row), row, column.key === linkKey);
+        this._fillStationName(td, row, column.key === linkKey);
         break;
       }
       case "city": {

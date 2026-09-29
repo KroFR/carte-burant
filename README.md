@@ -176,7 +176,7 @@ Identifiants acceptés, en plus des carburants :
 | Clef | En-tête | Contenu |
 |---|---|---|
 | `logo` | *(vide)* | Logo de l'enseigne, sinon son nom en texte, sinon `—`. |
-| `name` | Station | Nom, surchargeable par `station_names`. |
+| `name` | Station | Nom, surchargeable par `station_names`. Tronqué sur une ligne s'il déborde : un clic sur la ligne le déploie. |
 | `brand` | Enseigne | Attribut `brand`. |
 | `address` | Adresse | Attribut `address`. |
 | `city` | Ville | Ville, surchargeable par `station_cities`. |
@@ -305,6 +305,10 @@ Deux limites viennent des données :
 Avec `map_link`, le nom de la station devient un lien qui ouvre sa localisation dans une
 application de cartes — pour y jeter un œil ou lancer un itinéraire. Désactivé par défaut
 (`none`), le clic sur la ligne reste alors seul en jeu.
+
+Un nom trop long pour sa colonne est tronqué par une ellipse. Un clic ailleurs sur la ligne
+le déploie (et replie celui qui l'était) ; le clic suivant ouvre la fiche de l'entité si
+`more_info` est actif. Le nom, lui, ouvre toujours son lien du premier coup.
 
 Sans colonne `name` affichée, le lien se pose sur la première colonne d'identité présente :
 `city`, puis `address`, puis `brand`. Il est signalé par un soulignement en pointillés, et
